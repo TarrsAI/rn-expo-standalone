@@ -1,0 +1,49 @@
+# NOT a monorepo. This file exists only because pnpm moved its native-
+# build approvals out of package.json — and on pnpm 11 a missing approval
+# is a hard install FAILURE, not a warning:
+#
+#   [ERR_PNPM_IGNORED_BUILDS] Ignored build scripts: unrs-resolver
+#
+# `unrs-resolver` (pulled in by eslint's import resolver) compiles a
+# native binary in a postinstall, and pnpm 10+ blocks build scripts by
+# default. The approval's spelling changed between majors, so both live
+# here — keep them in sync:
+#
+#   pnpm 9  → doesn't block builds at all; nothing needed
+#   pnpm 10 → onlyBuiltDependencies (list)
+#   pnpm 11 → allowBuilds (map). It ignores onlyBuiltDependencies AND the
+#             package.json `pnpm` field, and when allowBuilds is absent it
+#             rewrites THIS file with a `set this to true or false`
+#             placeholder and fails the install.
+#
+# The Tarrs sandbox runs pnpm 11, so `allowBuilds` is the load-bearing
+# key. There is deliberately NO `pnpm.onlyBuiltDependencies` in
+# package.json: pnpm 11 only warns about it ("no longer read by pnpm"),
+# and pnpm 9 doesn't need it. Verified install + lint on 9, 10 and 11.
+#
+# `packages:` is required because pnpm 9 refuses to run any script when a
+# pnpm-workspace.yaml has no packages key ("packages field missing or
+# empty"). "." is this repo itself, which is the truth.
+packages:
+  - .
+
+# React Native needs a FLAT node_modules. Metro's resolver walks real
+# directories, and NativeWind's jsxImportSource emits
+# `react-native-css-interop/...` into your app files, which only resolves
+# from the project root. Under pnpm's default symlinked layout the web
+# bundle dies with "Unable to resolve module
+# react-native-css-interop/jsx-runtime".
+#
+# This is ALSO declared as `node-linker=hoisted` in .npmrc, and both are
+# required: pnpm 9/10 read the .npmrc spelling, pnpm 11 reads ONLY this
+# one and silently ignores the .npmrc line — which produced a symlinked
+# tree and a failing bundle even though .npmrc looked correct.
+nodeLinker: hoisted
+
+# pnpm 11+
+allowBuilds:
+  unrs-resolver: true
+
+# pnpm 10
+onlyBuiltDependencies:
+  - unrs-resolver

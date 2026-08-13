@@ -27,7 +27,7 @@ same `lib/api.ts` shape, different renderer.
 | Concern | Choice | Don't substitute |
 |---|---|---|
 | Framework | **Expo SDK 57** (managed / CNG — no checked-in `ios/` or `android/`) | Don't `expo prebuild` and commit the native folders unless you genuinely need custom native code. Once they're committed, config plugins stop applying and every SDK upgrade becomes a manual merge. |
-| Routing | **`expo-router` (file-based, `src/app/`), typed routes ON** | No React Navigation wired by hand. `expo-router` IS React Navigation underneath — configure it through the file tree and `<Stack.Screen>` / `<Tabs.Screen>` options. |
+| Routing | **`expo-router` (file-based, `src/app/`), `typedRoutes: false`** | No React Navigation wired by hand. `expo-router` IS React Navigation underneath — configure it through the file tree and `<Stack.Screen>` / `<Tabs.Screen>` options. **Don't flip `typedRoutes` back on** without reading "Why typed routes are off" below — it breaks the sandbox preview. |
 | Tabs | **`Tabs` from `expo-router`** | NOT `expo-router/unstable-native-tabs`. Native tabs need a `.web.tsx` fork to render in the Tarrs preview; the classic tab bar renders identically on all three platforms. |
 | Language | **TypeScript, `strict: true`** | No `.js` app files, no `any` to silence an error. |
 | Styling | **NativeWind 4 + Tailwind 3** (`className`) | No `StyleSheet.create` for new code, no styled-components, no UI kit (NativeUI / Tamagui / gluestack / RN Paper). Inline `style={}` is fine ONLY for values Tailwind can't express (e.g. a computed safe-area inset). |
@@ -35,7 +35,8 @@ same `lib/api.ts` shape, different renderer.
 | Data fetching | **`fetch` via the typed `api()` wrapper in `src/lib/api.ts`** | No `axios`. No TanStack Query / SWR / RTK Query **until you have a concrete need** — see "No state library" below. |
 | State | **`useState` / `useContext`** | No Redux / Zustand / Jotai / MobX preinstalled — see below. |
 | Icons | **`@expo/vector-icons`** (bundles FontAwesome 6 **Free**, Ionicons, MaterialIcons) | **No FA Pro.** This is a public repo; an `.npmrc` auth token here would leak. |
-| Package manager | **pnpm**, with `node-linker=hoisted` in `.npmrc` | Don't delete that line — see `.npmrc` for why. Don't add transitive deps (e.g. `react-native-css-interop`) to `package.json` to work around a resolution error. |
+| Package manager | **pnpm**, hoisted layout declared TWICE — `node-linker=hoisted` in `.npmrc` (pnpm 9/10) **and** `nodeLinker: hoisted` in `pnpm-workspace.yaml` (pnpm 11, which ignores `.npmrc`) | Don't delete either — RN needs a flat `node_modules`. Don't add transitive deps (e.g. `react-native-css-interop`) to `package.json` to work around a resolution error; that's the symptom of a symlinked tree. |
+| Native build approval | **`pnpm-workspace.yaml`** — `allowBuilds` (pnpm 11) + `onlyBuiltDependencies` (pnpm 10) | NOT `package.json`'s `pnpm` field — pnpm 11 ignores it and warns. On pnpm 11 a missing approval is a hard `ERR_PNPM_IGNORED_BUILDS` install failure, and pnpm rewrites `pnpm-workspace.yaml` itself with a placeholder. |
 | Env vars | **`EXPO_PUBLIC_*` in `.env`** (gitignored; `.env.example` committed) | Anything not prefixed `EXPO_PUBLIC_` is not in the bundle. Anything that IS prefixed is **public** — never a secret. |
 
 ### No state / data library — on purpose
@@ -107,6 +108,46 @@ project's `<service>-<id>.dev.tarrsapp.io` host.
      will not connect.
   2. **EAS dev build** (`dev` profile) — needed once you add any
      library with native code that Expo Go doesn't bundle.
+
+### Why typed routes are off (don't "fix" this)
+
+`app.json` sets `experiments.typedRoutes: false`. That is not an
+oversight — with it ON, `expo start` crashes in the Tarrs sandbox:
+
+```
+Error: EACCES: permission denied, open '.../.gitignore'
+    at upsertGitIgnoreContents (@expo/cli/.../mergeGitIgnorePaths.js)
+    at startTypescriptTypeGenerationAsync (...)
+```
+
+With `typedRoutes: true`, every `expo start` writes into the repo root:
+it upserts `expo-env.d.ts` into `.gitignore`, generates `expo-env.d.ts`,
+and rewrites `tsconfig.json`. The sandbox dev server runs as a
+restricted uid with no write access to the workspace, so the very first
+of those is a fatal EACCES and the preview never boots.
+
+**Pre-adding the entries to `.gitignore` does NOT help.** Expo opens the
+file with `flag: 'a+'` *before* it checks whether the entry is already
+there — the open itself needs write permission. Verified: with
+`.expo/` and `expo-env.d.ts` already present and the file read-only,
+`expo start` still dies with the trace above.
+
+Two things keep this repo boot-safe, and both must stay true:
+
+1. `experiments.typedRoutes: false` — skips the whole write block.
+2. `tsconfig.json`'s `include` matches exactly what Expo wants for
+   `typedRoutes: false` (`**/*.ts`, `**/*.tsx`, `nativewind-env.d.ts`).
+   If it disagrees, Expo rewrites `tsconfig.json` on start — another
+   write, another EACCES. Don't add `.expo/types/**/*.ts` or
+   `expo-env.d.ts` back to that list.
+
+Verified end-to-end: with `.gitignore`, `tsconfig.json`, `app.json` and
+`package.json` all chmod 444, `pnpm dev` serves HTTP 200 and modifies
+nothing.
+
+The cost is losing autocomplete on `href` strings. If you genuinely need
+it, turn it on for **local** work only and accept that the sandbox
+preview will not boot until you turn it back off.
 
 **Keep port 8081.** It's what the project's `infra-architecture.yml`
 service entry declares, and the sandbox's devserver watchdog decides the
@@ -189,7 +230,9 @@ against a cookie-session backend when running on web.
 - ❌ Don't use `StyleSheet.create` for new code — `className` only.
 - ❌ Don't commit `ios/` or `android/` (they're gitignored for a reason).
 - ❌ Don't install FA Pro. Public repo; the token would leak. `@expo/vector-icons` has FontAwesome 6 Free.
-- ❌ Don't remove `node-linker=hoisted` from `.npmrc`.
+- ❌ Don't remove the hoisted-layout setting from EITHER `.npmrc` or `pnpm-workspace.yaml` — different pnpm majors read different ones.
+- ❌ Don't delete `pnpm-workspace.yaml` because "this isn't a monorepo". It carries the pnpm 11 build approval and node linker; without it the sandbox install fails outright.
+- ❌ Don't set `experiments.typedRoutes: true` — it makes `expo start` write to the repo root and crash in the sandbox (see above).
 - ❌ Don't claim a native feature works because the web preview rendered.
 - ❌ Don't change `pnpm dev`'s port without updating the project's `infra-architecture.yml`.
 

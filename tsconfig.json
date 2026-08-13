@@ -7,12 +7,15 @@
       "@/assets/*": ["./assets/*"]
     }
   },
-  "include": [
-    "**/*.ts",
-    "**/*.tsx",
-    "nativewind-env.d.ts",
-    ".expo/types/**/*.ts",
-    "expo-env.d.ts"
+  "//": [
+    "`include` is EXACTLY what Expo expects for experiments.typedRoutes:false.",
+    "Expo rewrites this file on every `expo start` if it disagrees — and in",
+    "the Tarrs sandbox the dev server runs as a uid with no write access to",
+    "the repo, so that rewrite is a hard EACCES crash. Matching it here means",
+    "Expo has nothing to change. If you enable typedRoutes, Expo will want",
+    "`.expo/types/**/*.ts` and `expo-env.d.ts` back in this list (and see the",
+    "warning in CLAUDE.md before you do)."
   ],
+  "include": ["**/*.ts", "**/*.tsx", "nativewind-env.d.ts"],
   "exclude": ["node_modules", "dist"]
 }

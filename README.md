@@ -7,7 +7,7 @@ to a **separate backend** over HTTP, so pair it with `express-postgres`,
 ## What's included
 
 - **Expo SDK 57** + React Native 0.86, New Architecture on
-- **Expo Router** — file-based routing, typed routes, a working tab bar
+- **Expo Router** — file-based routing, a working tab bar
   (Home + Settings)
 - **TypeScript**, strict
 - **NativeWind 4** — Tailwind classes in React Native (`className="..."`),
