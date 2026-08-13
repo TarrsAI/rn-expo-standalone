@@ -1,0 +1,51 @@
+{
+  "//": [
+    "Profiles are named after Tarrs's three environments — dev / staging /",
+    "live. Keep these exact names: the platform's EAS panel",
+    "(Environments -> Deployment) selects a profile by environment name,",
+    "so renaming or deleting one silently breaks that env's build button.",
+    "",
+    "Do NOT run `eas build` / `eas submit` by hand from inside a Tarrs",
+    "sandbox for staging or live. The platform holds the Apple/Google",
+    "credentials server-side and runs those builds through CodeBuild; a",
+    "hand-run submit either fails on missing creds or ships an unsigned,",
+    "untracked binary. Local `eas build --profile dev` is fine.",
+    "",
+    "appVersionSource=remote means EAS owns the build number. Don't also",
+    "bump ios.buildNumber / android.versionCode in app.json — you'd get",
+    "two sources of truth and rejected store uploads."
+  ],
+  "cli": {
+    "version": ">= 16.0.0",
+    "appVersionSource": "remote"
+  },
+  "build": {
+    "dev": {
+      "developmentClient": true,
+      "distribution": "internal",
+      "channel": "dev",
+      "env": {
+        "EXPO_PUBLIC_API_URL": "http://localhost:4000"
+      }
+    },
+    "staging": {
+      "distribution": "internal",
+      "channel": "staging",
+      "autoIncrement": true,
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://staging.example.com"
+      }
+    },
+    "live": {
+      "distribution": "store",
+      "channel": "live",
+      "autoIncrement": true,
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://api.example.com"
+      }
+    }
+  },
+  "submit": {
+    "live": {}
+  }
+}
