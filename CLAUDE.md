@@ -109,10 +109,12 @@ project's `<service>-<id>.dev.tarrsapp.io` host.
      library with native code that Expo Go doesn't bundle.
 
 **Keep port 8081.** It's what the project's `infra-architecture.yml`
-service entry declares, and the sandbox's devserver watchdog polls
-`http://127.0.0.1:8081/` to decide whether the app is alive. Changing
-the script's port without changing the spec gets the process killed in
-a restart loop.
+service entry declares, and the sandbox's devserver watchdog decides the
+app is alive by opening a **TCP connection** to that port — it never
+reads a response, so all that matters is that Metro binds the port the
+spec names. Changing the script's port without changing the spec leaves
+the watchdog connecting to a dead port and killing the process in a
+restart loop.
 
 ## Tarrs-specific: EAS builds
 
@@ -198,10 +200,18 @@ pnpm install
 pnpm typecheck          # tsc --noEmit
 pnpm lint
 pnpm build:web          # expo export --platform web — catches bundler/resolver breaks
+npx expo-doctor         # must stay 20/20
 ```
 
 `pnpm build:web` is the one that catches NativeWind/Metro/babel
 misconfiguration; `typecheck` alone will not.
+
+`expo-doctor` is the one that catches config drift — deps that don't
+match the SDK, and `app.json` keys that a newer SDK dropped from its
+schema (SDK 57 removed `newArchEnabled` and `android.edgeToEdgeEnabled`;
+new architecture is the default now). It must report **20/20**. If you
+add a dependency, install it with `npx expo install <pkg>`, not
+`pnpm add` — that's what picks the version matching this SDK.
 
 ## What to do when in doubt
 
