@@ -13,7 +13,14 @@
     "",
     "appVersionSource=remote means EAS owns the build number. Don't also",
     "bump ios.buildNumber / android.versionCode in app.json — you'd get",
-    "two sources of truth and rejected store uploads."
+    "two sources of truth and rejected store uploads.",
+    "",
+    "EXPO_PUBLIC_API_URL is a PLACEHOLDER in all three profiles — replace",
+    "each one with your real backend URL. Note it must be reachable FROM",
+    "THE PHONE: an EAS build runs on a device, so 'localhost' means the",
+    "phone itself, not your laptop and not the Tarrs sandbox. Use a public",
+    "https URL (or your machine's LAN IP for a local dev client). Only the",
+    "web preview (pnpm dev, .env) can talk to localhost."
   ],
   "cli": {
     "version": ">= 16.0.0",
@@ -25,7 +32,7 @@
       "distribution": "internal",
       "channel": "dev",
       "env": {
-        "EXPO_PUBLIC_API_URL": "http://localhost:4000"
+        "EXPO_PUBLIC_API_URL": "https://dev-backend.example.com"
       }
     },
     "staging": {
@@ -33,7 +40,7 @@
       "channel": "staging",
       "autoIncrement": true,
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://staging.example.com"
+        "EXPO_PUBLIC_API_URL": "https://staging-backend.example.com"
       }
     },
     "live": {
@@ -41,7 +48,7 @@
       "channel": "live",
       "autoIncrement": true,
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://api.example.com"
+        "EXPO_PUBLIC_API_URL": "https://backend.example.com"
       }
     }
   },
